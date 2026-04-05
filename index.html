@@ -38,6 +38,8 @@
         color: white;
         text-decoration: none;
         font-weight: bold;
+        border: none;
+        cursor: pointer;
     }
 
     .admin {
@@ -55,9 +57,26 @@
 <div class="container">
     <h1>श्री राधे स्वयं सहायता समूह</h1>
 
-    <a href="https://www.kpnamana.online/admin" class="btn admin">Admin</a>
-    <a href="https://www.kpnamana.online/loan" class="btn loan">Loan</a>
+    <button class="btn admin" onclick="loginRedirect('admin')">Admin</button>
+    <button class="btn loan" onclick="loginRedirect('loan')">Loan</button>
 </div>
+
+<script>
+    function loginRedirect(type) {
+        var user = prompt("Enter ID:");
+        var pass = prompt("Enter Password:");
+
+        if(user === "admin" && pass === "1234") {
+            if(type === 'admin'){
+                window.location.href = "https://m8079000715.github.io/sssnamana/admin";
+            } else {
+                window.location.href = "https://m8079000715.github.io/sssnamana/loan";
+            }
+        } else {
+            alert("Wrong ID or Password");
+        }
+    }
+</script>
 
 </body>
 </html>
