@@ -92,6 +92,16 @@ button { background:#0984e3; color:white; border:none; }
   z-index: 999;
 }
 
+/* LOGIN */
+#loginBox {
+  max-width:300px;
+  margin:100px auto;
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+}
+
 @media (max-width:480px){
   .card { padding:10px; }
   .row { font-size:13px; }
@@ -101,6 +111,17 @@ button { background:#0984e3; color:white; border:none; }
 
 <body>
 
+<!-- LOGIN -->
+<div id="loginBox">
+  <h2>Login</h2>
+  <input type="text" id="loginId" placeholder="Enter ID">
+  <input type="password" id="loginPass" placeholder="Enter Password">
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+
 <h1>श्री राधे स्वयं सहायता समूह नमाना</h1>
 
 <div class="tabs">
@@ -109,7 +130,6 @@ button { background:#0984e3; color:white; border:none; }
 </div>
 
 <div id="entry" class="section active">
-
 <h3>Data Entry</h3>
 
 <input type="date" id="date">
@@ -122,11 +142,9 @@ button { background:#0984e3; color:white; border:none; }
 <button onclick="downloadExcel()">Download Excel</button>
 
 <div id="entryData"></div>
-
 </div>
 
 <div id="view" class="section">
-
 <h3>Records</h3>
 
 <select id="yearFilter" onchange="renderData()">
@@ -134,6 +152,7 @@ button { background:#0984e3; color:white; border:none; }
 </select>
 
 <div id="viewData"></div>
+</div>
 
 </div>
 
@@ -143,6 +162,20 @@ button { background:#0984e3; color:white; border:none; }
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
+
+// 🔐 HARD CODE LOGIN
+function login(){
+  let id=document.getElementById("loginId").value;
+  let pass=document.getElementById("loginPass").value;
+
+  if(id==="admin" && pass==="1234"){
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("app").style.display="block";
+  }else{
+    alert("Wrong ID or Password");
+  }
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyBf36zWkQUGYjxvXAowJsIMJuoa_altvq8",
   authDomain: "sss-namana-loan.firebaseapp.com",
@@ -259,7 +292,6 @@ function editData(path){
     depositEl.value=d.deposit_loan;
     interestEl.value=d.interest;
     editPath=path;
-    showTab(event,'entry');
   });
 }
 
@@ -323,6 +355,7 @@ const nameEl = document.getElementById("name");
 const loanEl = document.getElementById("loan");
 const depositEl = document.getElementById("deposit");
 const interestEl = document.getElementById("interest");
+
 </script>
 
 </body>
