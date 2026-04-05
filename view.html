@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMI Viewer Mobile Fix</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body { background:#eef2f7; }
+.card { border-radius:15px; }
+.table th { background:#0d6efd; color:white; font-size:12px; }
+.table td { font-size:12px; }
+.name-title { font-weight:bold; font-size:18px; text-align:center; }
+@media(max-width:576px){
+  .table th,.table td{ font-size:11px; padding:6px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container py-3">
+<div class="card p-3 shadow">
+
+<h5 class="text-center">🔍 EMI Search</h5>
+
+<input type="text" id="searchName" class="form-control" placeholder="नाम टाइप करें..." onkeyup="searchNameLive()">
+
+<ul id="nameList" class="list-group mt-2"></ul>
+
+<h5 id="selectedName" class="name-title text-primary mt-2"></h5>
+
+<div class="table-responsive">
+<table class="table table-bordered text-center" id="table"></table>
+</div>
+
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDvHRppOE9aiiNT7MyvkScRTo4eWYiiWOQ",
+authDomain: "sss-namana.firebaseapp.com",
+databaseURL: "https://sss-namana-default-rtdb.firebaseio.com/",
+projectId: "sss-namana"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let fullData = {};
+
+get(ref(db, "records")).then(s => {
+  fullData = s.val() || {};
+});
+
+window.searchNameLive = function(){
+let s = searchName.value.toLowerCase();
+nameList.innerHTML="";
+
+if(!s) return;
+
+for(let id in fullData){
+let r = fullData[id];
+
+if(r.name && r.name.toLowerCase().includes(s)){
+let li=document.createElement("li");
+li.className="list-group-item";
+li.innerText=r.name;
+li.onclick=()=>showData(r);
+nameList.appendChild(li);
+}
+}
+}
+
+function showData(r){
+
+selectedName.innerText=r.name.toUpperCase();
+
+table.innerHTML=`
+<tr>
+<th>Month</th>
+<th>EMI</th>
+<th>Loan</th>
+<th>Interest</th>
+<th>Total</th>
+</tr>
+`;
+
+let totalEmi=0,totalLoan=0,totalInt=0,grand=0;
+
+let months=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+months.forEach(m=>{
+let d=(r.months && r.months[m])?r.months[m]:{emi:0,loan:0,int:0};
+
+let emi=+d.emi||0;
+let loan=+d.loan||0;
+let intr=+d.int||0;
+
+let total=emi+loan+intr;
+
+totalEmi+=emi;
+totalLoan+=loan;
+totalInt+=intr;
+grand+=total;
+
+let row=table.insertRow();
+row.innerHTML=`<td>${m.toUpperCase()}</td>
+<td>${emi}</td>
+<td>${loan}</td>
+<td>${intr}</td>
+<td>${total}</td>`;
+});
+
+// FIXED TOTAL ROWS (aligned properly)
+
+table.innerHTML += `
+<tr class="table-warning fw-bold">
+<td colspan="2">TOTAL EMI</td>
+<td colspan="3">${totalEmi}</td>
+</tr>
+
+<tr class="table-info fw-bold">
+<td colspan="2">TOTAL LOAN</td>
+<td colspan="3">${totalLoan}</td>
+</tr>
+
+<tr class="table-danger fw-bold">
+<td colspan="2">TOTAL INTEREST</td>
+<td colspan="3">${totalInt}</td>
+</tr>
+
+<tr class="table-success fw-bold">
+<td colspan="2">GRAND TOTAL</td>
+<td colspan="3">${grand}</td>
+</tr>
+`;
+
+}
+</script>
+
+</body>
+</html>
