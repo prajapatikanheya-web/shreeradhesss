@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>श्री राधे स्वयं सहायता समूह</title>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body { max-width:500px; margin:auto; font-family: 'Poppins', sans-serif; background: #f4f6f9; padding: 20px; }
+    h2 { text-align: center; }
+    button { background: #007bff; color: white; padding: 10px; border-radius: 8px; border: none; }
+    .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .person-name { font-weight: bold; color: #007bff; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #007bff; color: white; padding: 8px; }
+    td { padding: 8px; text-align: center; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .total-row { background: #ffe082 !important; font-weight: bold; }
+    .summary { display: flex; gap: 10px; margin-top: 10px; }
+    .box { flex: 1; padding: 10px; color: white; border-radius: 8px; text-align: center; }
+    .emi { background: #28a745; }
+    .int { background: #dc3545; }
+    .loan { background: #6f42c1; }
+  
+@media (max-width:480px){
+  body{ padding:10px; }
+  h2{ font-size:18px; }
+  button{ width:100%; margin-bottom:10px; }
+  table{ font-size:12px; }
+  .summary{ flex-direction:column; }
+}
+
+
+/* Fix login mobile center */
+#loginBox{
+  padding:15px !important;
+}
+
+/* Table scroll for mobile */
+.table-wrapper{
+  overflow-x:auto;
+}
+
+/* Wrap table */
+table{
+  min-width:500px;
+}
+
+/* Better spacing */
+.card{
+  padding:12px !important;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="loginBox" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f4f6f9;z-index:9999;">
+  <div style="background:#fff;padding:25px;border-radius:12px;max-width:350px;width:90%;box-shadow:0 4px 10px rgba(0,0,0,0.2);text-align:center;">
+    <h3>Login</h3>
+    <input id="loginId" style="width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ccc;" placeholder="Enter ID">
+    <input id="loginPass" type="password" style="width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ccc;" placeholder="Enter Password">
+    <button onclick="login()" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:8px;">Login</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+
+<h2>श्री राधे स्वयं सहायता समूह</h2>
+<button onclick="downloadExcel()">Download Excel</button>
+<div id="container"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDvHRppOE9aiiNT7MyvkScRTo4eWYiiWOQ",
+  authDomain: "sss-namana.firebaseapp.com",
+  databaseURL: "https://sss-namana-default-rtdb.firebaseio.com",
+  projectId: "sss-namana"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const monthOrder = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+const container = document.getElementById("container");
+let excelData = [];
+
+db.ref("records").on("value", snapshot => {
+
+  container.innerHTML = "";
+  excelData = [];
+
+  const data = snapshot.val();
+
+  Object.values(data).forEach(person => {
+
+    let totalEmi = 0, totalInt = 0, totalLoan = 0;
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    let html = `<div class="person-name">${person.name}</div>
+    <div class="table-wrapper"><table>
+    <tr><th>Month</th><th>EMI</th><th>Interest</th><th>Loan</th></tr>`;
+
+    const sortedMonths = Object.keys(person.months)
+      .sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+
+    sortedMonths.forEach(month => {
+      const values = person.months[month];
+
+      const emi = values.emi || 0;
+      const int = values.int || 0;
+      const loan = values.loan || 0;
+
+      totalEmi += emi;
+      totalInt += int;
+      totalLoan += loan;
+
+      html += `<tr>
+        <td>${month}</td>
+        <td>${emi}</td>
+        <td>${int}</td>
+        <td>${loan}</td>
+      </tr>`;
+
+      excelData.push({
+        Name: person.name,
+        Month: month,
+        EMI: emi,
+        Interest: int,
+        Loan: loan
+      });
+    });
+
+    html += `<tr class="total-row">
+      <td>Total</td>
+      <td>${totalEmi}</td>
+      <td>${totalInt}</td>
+      <td>${totalLoan}</td>
+    </tr></table></div>
+
+    <div class="summary">
+      <div class="box emi">EMI: ${totalEmi}</div>
+      <div class="box int">Interest: ${totalInt}</div>
+      <div class="box loan">Loan: ${totalLoan}</div>
+    </div>`;
+
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+
+});
+
+function downloadExcel() {
+  const ws = XLSX.utils.json_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Data");
+  XLSX.writeFile(wb, "Loan_Data.xlsx");
+}
+</script>
+
+
+</div>
+
+<script>
+function login(){
+  var id=document.getElementById('loginId').value;
+  var pass=document.getElementById('loginPass').value;
+  if(id==='admin' && pass==='1234'){
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('app').style.display='block';
+  }else{
+    alert('Wrong ID or Password');
+  }
+}
+</script>
+
+</body>
+</html>
