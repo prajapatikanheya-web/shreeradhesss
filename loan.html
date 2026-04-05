@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Portal</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f4f8;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+}
+
+h1 { margin: 5px; }
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  margin: 5px;
+  border-radius: 8px;
+  border: none;
+  background: #ccc;
+}
+
+.tab-btn.active {
+  background: #0984e3;
+  color: white;
+}
+
+.section { display: none; }
+.section.active { display: block; }
+
+input, button, select {
+  width: 90%;
+  max-width: 300px;
+  padding: 10px;
+  margin: 6px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button { background:#0984e3; color:white; border:none; }
+.delete-btn { background:red; }
+.edit-btn { background:orange; }
+
+.card {
+  background:#fff;
+  padding:12px;
+  margin:10px auto;
+  border-radius:12px;
+  max-width:400px;
+  text-align:left;
+  box-shadow:0 3px 8px rgba(0,0,0,0.15);
+}
+
+.row {
+  display:flex;
+  justify-content:space-between;
+  margin:4px 0;
+  font-size:14px;
+}
+
+.name {
+  font-weight:bold;
+  color:#0984e3;
+  margin-bottom:5px;
+}
+
+.amount {
+  font-weight:bold;
+  color:green;
+}
+
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  display: none;
+  z-index: 999;
+}
+
+@media (max-width:480px){
+  .card { padding:10px; }
+  .row { font-size:13px; }
+}
+</style>
+</head>
+
+<body>
+
+<h1>श्री राधे स्वयं सहायता समूह नमाना</h1>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab(event,'entry')">Entry</button>
+  <button class="tab-btn" onclick="showTab(event,'view')">View</button>
+</div>
+
+<div id="entry" class="section active">
+
+<h3>Data Entry</h3>
+
+<input type="date" id="date">
+<input type="text" id="name" placeholder="Name">
+<input type="number" id="loan" placeholder="Loan">
+<input type="number" id="deposit" placeholder="Deposit">
+<input type="number" id="interest" placeholder="Interest">
+
+<button onclick="saveData()">Save / Update</button>
+<button onclick="downloadExcel()">Download Excel</button>
+
+<div id="entryData"></div>
+
+</div>
+
+<div id="view" class="section">
+
+<h3>Records</h3>
+
+<select id="yearFilter" onchange="renderData()">
+<option value="all">All Years</option>
+</select>
+
+<div id="viewData"></div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBf36zWkQUGYjxvXAowJsIMJuoa_altvq8",
+  authDomain: "sss-namana-loan.firebaseapp.com",
+  databaseURL: "https://sss-namana-loan-default-rtdb.firebaseio.com",
+  projectId: "sss-namana-loan"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let allData = [];
+let fullData = {};
+let editPath = null;
+
+function showToast(msg){
+  let t = document.getElementById("toast");
+  t.innerText = msg;
+  t.style.display = "block";
+  setTimeout(()=>{ t.style.display = "none"; }, 2000);
+}
+
+function showTab(evt, tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  evt.currentTarget.classList.add('active');
+}
+
+window.onload = () => {
+  dateEl.value = new Date().toISOString().split('T')[0];
+};
+
+function formatDate(d){
+  if(!d) return "-";
+  let p=d.split("-");
+  return p[2]+"/"+p[1]+"/"+p[0];
+}
+
+function saveData(){
+  let date = dateEl.value;
+  let name = nameEl.value.trim();
+  let loan = Number(loanEl.value);
+  let deposit = Number(depositEl.value);
+  let interest = Number(interestEl.value);
+
+  if(!name) return showToast("Enter name");
+
+  if (!editPath) {
+    let exists = allData.find(d => d.name.toLowerCase()===name.toLowerCase());
+    if (exists) return showToast("Duplicate name not allowed");
+  }
+
+  let y = date.split("-")[0];
+  let m = date.split("-")[1];
+
+  let data = {date,name,loan,deposit_loan:deposit,interest};
+
+  if(editPath){
+    db.ref(editPath).update(data);
+    editPath=null;
+    showToast("Data Updated");
+  } else {
+    db.ref("loan_records/"+y+"/"+m).push(data);
+    showToast("Data Saved");
+  }
+
+  clearForm();
+}
+
+function clearForm(){
+  nameEl.value="";
+  loanEl.value="";
+  depositEl.value="";
+  interestEl.value="";
+}
+
+db.ref("loan_records").on("value", snap=>{
+  fullData = snap.val() || {};
+  allData=[];
+  let html="";
+
+  for(let y in fullData){
+    for(let m in fullData[y]){
+      for(let id in fullData[y][m]){
+        let d = fullData[y][m][id];
+        let path = `loan_records/${y}/${m}/${id}`;
+        allData.push({...d,path});
+
+        html+=`
+        <div class="card">
+          <div class="name">${d.name}</div>
+          <div>${formatDate(d.date)}</div>
+          <div>Loan: ₹${d.loan}</div>
+          <div>Deposit: ₹${d.deposit_loan}</div>
+          <div>Interest: ₹${d.interest}</div>
+          <button class="edit-btn" onclick="editData('${path}')">Edit</button>
+          <button class="delete-btn" onclick="deleteData('${path}')">Delete</button>
+        </div>`;
+      }
+    }
+  }
+
+  entryData.innerHTML=html;
+  populateYear();
+  renderData();
+});
+
+function editData(path){
+  db.ref(path).once("value").then(s=>{
+    let d=s.val();
+    dateEl.value=d.date;
+    nameEl.value=d.name;
+    loanEl.value=d.loan;
+    depositEl.value=d.deposit_loan;
+    interestEl.value=d.interest;
+    editPath=path;
+    showTab(event,'entry');
+  });
+}
+
+function deleteData(path){
+  db.ref(path).remove();
+  showToast("Data Deleted");
+}
+
+function populateYear(){
+  yearFilter.innerHTML='<option value="all">All Years</option>';
+  for(let y in fullData){
+    yearFilter.innerHTML+=`<option value="${y}">${y}</option>`;
+  }
+}
+
+function renderData(){
+  let ySel=yearFilter.value;
+  let html="";
+
+  for(let y in fullData){
+    if(ySel!=="all" && ySel!==y) continue;
+
+    html+=`<h3>${y}</h3>`;
+
+    for(let m in fullData[y]){
+      for(let id in fullData[y][m]){
+        let d=fullData[y][m][id];
+        let out=(d.loan||0)-(d.deposit_loan||0);
+
+        html+=`
+        <div class="card">
+          <div class="name">${d.name}</div>
+          <div class="row"><span>Date</span><span>${formatDate(d.date)}</span></div>
+          <div class="row"><span>Loan</span><span>₹${d.loan}</span></div>
+          <div class="row"><span>Deposit</span><span>₹${d.deposit_loan}</span></div>
+          <div class="row"><span>Interest</span><span>₹${d.interest}</span></div>
+          <div class="row amount"><span>Outstanding</span><span>₹${out}</span></div>
+        </div>`;
+      }
+    }
+  }
+
+  viewData.innerHTML=html || "No Data Found";
+}
+
+function downloadExcel(){
+  let csv="Date,Name,Loan,Deposit,Interest\n";
+  allData.forEach(d=>{
+    csv+=`${formatDate(d.date)},${d.name},${d.loan},${d.deposit_loan},${d.interest}\n`;
+  });
+
+  let blob=new Blob([csv]);
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="loan_data.csv";
+  a.click();
+}
+
+const dateEl = document.getElementById("date");
+const nameEl = document.getElementById("name");
+const loanEl = document.getElementById("loan");
+const depositEl = document.getElementById("deposit");
+const interestEl = document.getElementById("interest");
+</script>
+
+</body>
+</html>
